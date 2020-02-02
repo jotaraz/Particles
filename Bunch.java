@@ -1,0 +1,208 @@
+
+
+public class Bunch {
+  static final double pi = Math.PI;
+  double[] rx;    
+  double[] ry;
+  double[] vx;
+  double[] vy;
+  int[] la;
+  int[] in;
+  final int xg = 1200; //x Rahmen
+  final int yg = 600; //y Rahmen 
+  final int thickness = 20;    
+  final int std_radius = 1;
+  final int std_mass   = std_radius*std_radius*std_radius;
+  final double v_def = 100.0; //Default Geschwindigkeit
+  final double v_ran = 20.0;
+  static final double gx = 0.0; //Gravitation x Komponente
+  static final double gy = 0.0; //Gravitation y Komponente
+  final double t = 0.0001;
+  int n;
+  
+  public static double squ(double x) {
+    return x*x;  
+  }
+  
+  public static double sin(double x) {
+    return Math.sin(x);
+    //return x-(x*x*x)/6.0+(x*x*x*x*x)/120.0-(x*x*x*x*x*x*x)/5040.0;
+  }
+  
+  public static double cos(double x) {
+    return Math.cos(x);
+    //return 1.0-(x*x)/2.0+(x*x*x*x)/24.0-(x*x*x*x*x*x)/720.0;   
+  }
+  
+  public void borders(int i) {
+    if(rx[i] < 0) {
+      recreate(i);
+    } else if(rx[i] > xg) {
+      recreate(i);
+    } else if(ry[i] < 0) {
+      recreate(i);
+    } else if(ry[i] > yg) {
+      recreate(i);
+    }
+  }  
+  
+  
+  public void update() {
+    for (int i = 0; i < n; ++i) {
+      vx[i] += gx*t;              
+      vy[i] += gy*t;
+      rx[i] += vx[i]*t;
+      ry[i] += vy[i]*t;
+      in[i] -= 1;
+      borders(i);
+    }
+  }  
+  
+  public double angle(double dx, double dy) {
+    if(dx == 0 && dy > 0) {
+      return pi/2;
+    } else if(dx == 0 && dy < 0) {
+      return 1.5*pi;
+    } // end of if-else
+    double beta = Math.atan(dy/dx);
+    //System.out.println(beta/pi*180);
+    if(dx < 0 && dy >= 0) {
+      beta = pi+beta;
+    } else if(dx < 0 && dy < 0) {
+      beta = 1.5*pi-beta;
+    } else if(dx >= 0 && dy < 0) {
+      beta = 2*pi+beta;
+    }
+    return beta;
+  }
+  
+  public void doSectionStuff(int i, double alpha) {
+    double betac = angle(vx[i], vy[i]);
+    double cosbetac = cos(betac);
+    double sinbetac = sin(betac);
+    double v = Math.sqrt(vx[i]*vx[i]+vy[i]*vy[i]); 
+    //impx += std_mass*v*(cosbetac-cos0); impy += std_mass*v*(sinbetac-sin0);
+    if(betac < 0) betac += 2*pi;
+    vx[i] = v*cos(2*alpha-betac); //Math.cos(betac); //v*tan(betac)[0]; 
+    vy[i] = v*sin(2*alpha-betac); //Math.sin(betac); //v*tan(betac)[1];
+    rx[i] += vx[i]*t; 
+    ry[i] += vy[i]*t;
+    in[i] = 10;  
+  }
+  
+  public boolean inSection(int i, double sx1, double sy1, double sx2, double sy2) {
+    double x = rx[i];
+    double y = ry[i];
+    double ux = sx2-sx1;
+    double uy = sy2-sy1;
+    double m = uy/(ux+0.00001);
+    double b = sy1-m*sx1;
+    
+    double d = m*x+b-y;
+    if(d < 0) d *= -1.0;
+    
+    if((((sx1 <= x && x <= sx2) || (sx2 <= x && x <= sx1)) || ((sy1 <= y && y <= sy2) || (sy2 <= y && y <= sy1))) && d <= 1.5*std_radius) {
+      doSectionStuff(i, angle((sx2-sx1), (sy2-sy1)));
+      return true;
+    }
+    return false;
+  }
+  
+  public void testsmash(int i) {
+    for (int j = 0; j < i; j++) {
+      if((squ(ry[i]-ry[j])+squ(rx[i]-rx[j])) <= squ(2*std_radius) && la[i] != j && la[j] != i && in[i] <= 0) {
+        smash(i, j);
+      }
+    }  
+  }
+    
+  public void create(int n) {
+    for (int i = 0; i < n; i++) {
+      recreate(i);
+    }              
+  }
+  
+  public void recreate(int i) {
+    rx[i] = 0;
+    ry[i] = (int)(Math.random()*(yg));
+    vx[i] = v_def+Math.random()*(2*v_ran)-v_ran;
+    vy[i] = Math.random()*(2*v_ran)-v_ran;
+    la[i] = i;
+    in[i] = 0;
+  }
+  
+  public void smash(int i, int j) {
+    double x1 = rx[i];
+    double y1 = ry[i];
+    double x2 = rx[j];
+    double y2 = ry[j];
+    double v1x = vx[i];
+    double v1y = vy[i];
+    double v2x = vx[j];
+    double v2y = vy[j];
+    double phi = 0;
+    double theta1 = 0;
+    double theta2 = 0;
+    if((x1-x2) > 0) {
+      phi += pi;
+    }
+    if(v1x < 0) {
+      theta1 += pi;  
+    }
+    if(v2x < 0) {
+      theta2 += pi;  
+    }     
+    phi += Math.atan((y1-y2)/(x1-x2+0.00001));  
+    theta1 += Math.atan(v1y/v1x);
+    theta2 += Math.atan(v2y/v2x);
+    
+    double m1 = std_mass;
+    double m2 = std_mass;
+    double v1 = Math.sqrt(v1x*v1x+v1y*v1y);
+    double v2 = Math.sqrt(v2x*v2x+v2y*v2y);
+    double cos1 = cos(theta1-phi);
+    double cos2 = cos(theta2-phi);
+    double cos0 = cos(phi);
+    double sin1 = sin(theta1-phi);
+    double sin2 = sin(theta2-phi);
+    double sin0 = sin(phi);
+    
+    double u1x = (v1*cos1*(m1-m2)+2*m2*v2*cos2)/(m1+m2)*cos0-v1*sin1*sin0;
+    double u1y = (v1*cos1*(m1-m2)+2*m2*v2*cos2)/(m1+m2)*sin0+v1*sin1*cos0;
+    
+    double u2x = (v2*cos2*(m2-m1)+2*m1*v1*cos1)/(m1+m2)*cos0-v2*sin2*sin0;
+    double u2y = (v2*cos2*(m2-m1)+2*m1*v1*cos1)/(m1+m2)*sin0+v2*sin2*cos0;
+    
+    vx[i] = u1x;
+    vy[i] = u1y;
+    vx[j] = u2x;
+    vy[j] = u2y;
+    
+    if(Math.sqrt(squ(y1-y2)+squ(x1-x2)) < (2*std_radius) && (i<n || j<n)) {    
+      phi += pi;
+      rx[i] = rx[j]+(int)((2*std_radius+1)*cos(phi));
+      ry[i] = ry[j]+(int)((2*std_radius+1)*sin(phi)); 
+    }
+    la[i] = j;
+    la[j] = i;
+    rx[i] += 2*vx[i]*t; 
+    ry[i] += 2*vy[i]*t;  
+    rx[j] += 2*vx[j]*t; 
+    ry[j] += 2*vy[j]*t;      
+  }
+
+  public Bunch (int N) {
+    n = N;
+    rx = new double[n];
+    ry = new double[n];
+    vx = new double[n];
+    vy = new double[n];
+    la = new int[n];
+    in = new int[n];
+    create(n);
+    
+    
+    
+  }  
+  
+}  
